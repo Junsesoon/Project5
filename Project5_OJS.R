@@ -64,6 +64,49 @@ library(XML) # 웹 크롤링
 # 제공된 데이터를 이용하여 토픽 분석을 실시하여 단어구름으로 시각화 하고 
 # 단어 출현 빈도수를 기반하여 어떤 단어들이 주요 단어인지 설명하시오
 
+#1-2. 세종 사전에 단어 추가
+user_dic <- data.frame(term = c("수도", "정신", "사명"), tag = 'ncn')
+buildDictionary(ext_dic = "sejong", user_dic = user_dic)
+#1-3. 단어 추출을 위한 사용자 함수 정의하기
+# 단계 1: 사용자 정의 함수 작성
+exNouns <- function(x) { paste(extractNoun(as.character(x)), collapse = " ") }
+# 단계 2: exNouns() 함수를 이용하여 단어 추출
+Lincoln_nouns <- sapply(Lincoln_pdf, exNouns)
+Lincoln_nouns
+#1-4. 불용어 제거하기
+#1단계 데이터 전처리
+#추출된 단어를 이용하여 말뭉치(Corpus) 생성
+myCorpus <-Corpus(VectorSource(Lincoln_nouns))
+#문장부호 제거
+myCorpusPrepo <- tm_map(myCorpus, removePunctuation)
+#수치 제거 = 숫자 제거
+myCorpusPrepo <- tm_map(myCorpusPrepo, removeNumbers)
+#소문자 변경
+myCorpusPrepo <- tm_map(myCorpusPrepo, tolower)
+#제거할 단어 지정
+myStopwords = c(stopwords('english'), '한', '수', '들', '곳', '것', '하게')
+#불용어 제거
+myCorpusPrepo <- tm_map(myCorpusPrepo, removeWords, myStopwords)
+#2단계 단어선별과 평서문 변환
+myCorpusPrepo_term <- TermDocumentMatrix(myCorpusPrepo, control = list(wordLength = c(2,16)))
+myTerm_df <- as.data.frame(as.matrix(myCorpusPrepo_term))
+#3단계 단어 출현 빈도수 구하기
+wordResult <- sort(rowSums(myTerm_df), decreasing = TRUE)
+wordResult[1:10]
+#1-5. 단어 구름에 디자인(빈도수, 색상, 위치, 회전 등) 적용하기
+#1단계 단어 이름과 빈도수로 data.frame 생성
+myName <- names(wordResult)
+word.df <- data.frame(word = myName, freq = wordResult)
+word.df
+str(word.df )
+#2단계 단어 색상과 글꼴 지정
+pal <- brewer.pal(12, "Paired")
+#3단계 단어 구름 시각화
+wordcloud(word.df$word, word.df$freq, scale = c(5, 1), 
+          min.freq = 1, random.order = F, 
+          rot.per = .1, colors = pal)
+wordcloud2(word.df)
+
 
 
 
