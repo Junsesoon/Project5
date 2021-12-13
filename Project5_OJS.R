@@ -64,6 +64,56 @@ library(XML) # 웹 크롤링
 # 제공된 데이터를 이용하여 토픽 분석을 실시하여 단어구름으로 시각화 하고 
 # 단어 출현 빈도수를 기반하여 어떤 단어들이 주요 단어인지 설명하시오
 
+# 1)데이터 불러오기
+lincoln_data <- file("c:/rwork/Lincoln_Gettysburg_Address2.txt",encoding = "UTF-8")
+lincoln <- readLines(lincoln_data)
+close(lincoln_data)
+
+# 결과물 보정을 위한 말뭉치 생성 전 전처리
+lincoln <- str_replace_all(lincoln,"[들이,하게]","")
+
+exNouns <- function(x) {paste(extractNoun(as.character(x)), collapse = " ")}
+lincoln_nouns <- sapply(lincoln, exNouns)
+head(lincoln_nouns)
+
+# 2) 말뭉치 생성
+library(tm)
+lincoln_corpus <- Corpus(VectorSource(lincoln_nouns))
+inspect(lincoln_corpus[1:5])
+
+# 3) 문장부호, 수치, 소문자, 불용어 제거
+lincoln_pipe <- lincoln_corpus %>% tm_map(removePunctuation) %>% tm_map(stripWhitespace) %>% 
+  tm_map(removeNumbers) %>% tm_map(tolower) %>% tm_map(removeWords,stopwords('english'))
+
+# 4) 전처리 결과 확인
+inspect(lincoln_pipe)
+
+# 5) 2~8음절 대상 단어 선정
+TDM5 <- TermDocumentMatrix(lincoln_pipe,control = list(wordLengths = c(4,16)))
+TDM5
+
+# 6) 자료구조 변경
+lincoln_df <- TDM5 %>% as.matrix() %>% as.data.frame()
+dim(lincoln_df)
+
+# 7) 단어 출현 빈도수 구하기
+lincoln_wordtable <- sort(rowSums(lincoln_df), decreasing = TRUE)
+lincoln_wordtable[1:10]
+
+# 8) 단어 이름과 빈도수로 데이터프레임 생성
+myName <- names(lincoln_wordtable)
+word.df <- data.frame(word=myName[1:32],freq=lincoln_wordtable[1:32])
+str(word.df)
+
+# 9) 단어 색상과 글꼴 지정
+pal <- brewer.pal(12, "Paired")
+
+# 10) 단어 구름 시각화
+wordcloud(word.df$word,word.df$freq,scale=c(5,1),
+          min.freq = 3, random.order = F,
+          rot.per = .1, colors = pal, family = "malgun")
+# wordcloud2(data=word.df)
+
 
 
 
