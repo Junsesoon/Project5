@@ -121,6 +121,63 @@ wordcloud(word.df$word,word.df$freq,scale=c(5,1),
 # 제공된 데이터를 이용하여 연관어 분석을 실시하여 연관어를 시각화하고
 # 시각화 결과에 대해 설명하시오
 
+# 1) 데이터 불러오기
+lincoln_data <- file("c:/rwork/Lincoln_Gettysburg_Address2.txt",encoding = "UTF-8")
+lincoln <- readLines(lincoln_data)
+close(lincoln_data)
+
+# 결과물 보정을 위한 말뭉치 생성 전 전처리
+lincoln <- str_replace_all(lincoln,"[들이,하게]","")
+head(lincoln)
+
+# 2) 줄 단위 단어 추출
+lword <- Map(extractNoun, lincoln)
+lword <- unique(lword)
+head(lword)
+
+# 3) 중복 및 1음절 단어 제거
+filter1 <- function(x){
+  nchar(x) <= 5 && nchar(x) >= 2 && is.hangul(x)
+}
+filter2 <- function(x){Filter(filter1,x)}
+
+lword <- sapply(lword,filter2)
+head(lword)
+
+# 4) 트랜잭션 생성
+wordtran <- as(lword,"transactions")
+
+
+# 5) 연관규칙 발견
+tranrules <- apriori(wordtran,parameter = list(supp = 0.12, conf = 0.05))
+# 지지도가 0.12 이하인 모든 집합을 제외한다.
+
+# 6) 연관규칙 생성 결과보기
+detach(package:tm, unload = TRUE)
+inspect(tranrules)
+
+# 7) 시각화를 위한 자료구조 변경
+eye <- labels(tranrules,ruleSep=" ")
+eye
+
+# 8) 문자열로 묶인 연관 단어를 행렬구조로 변경
+eye <- sapply(eye,strsplit, " ",USE.NAMES = F)
+eye
+
+# 9) 행 단위로 묶어서 매트릭스로 변환
+rulemat <- do.call("rbind",eye)
+class(rulemat)
+
+# 10) 연관규칙 보기
+ruleg <- graph.edgelist(rulemat[c(13:58),],directed=F)
+ruleg
+
+# 11) 연관규칙 시각화
+plot.igraph(ruleg, vertex.label = V(ruleg)$name,
+            vertex.label.cex = 1.2, vertext.label.color = 'black',
+            vertex.size = 20, vertext.color = 'green',
+            vertex.frame.co.or = 'blue')
+
 
 
 
