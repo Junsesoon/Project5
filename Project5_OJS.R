@@ -28,6 +28,7 @@ install_github("lchiffon/wordcloud2")
 devtools::install_github("lchiffon/wordcloud2") # rtools 3.5 설치 후 사용
 install.packages("httr")
 install.packages("XML")
+install.packages("pdftools")
 
 library(KoNLP);useNIADic() # extractnoun(),useNIADic(),buildDictionary
 library(dplyr) # 파이프 연산자
@@ -45,6 +46,34 @@ library(tm) # 텍스트 마이닝
 library(wordcloud2) # 워드클라우드2
 library(httr) # 웹 크롤링
 library(XML) # 웹 크롤링
+library(pdftools)
+
+  # 연설문 데이터전처리
+Lincoln_pdf <- pdf_text("Lincoln_Gettysburg_Address2.pdf") #pdftools 패키지에 있는 pdf_text()함수
+Lincoln_pdf1 <- Lincoln_pdf[1]
+Lincoln_pdf2 <- strsplit(Lincoln_pdf1, '\n')
+Lincoln_pdf3 <- Lincoln_pdf2[[1]][c(2:20)]
+Lincoln_pdf4 <- list()
+Lincoln_pdf4[1] <- paste(Lincoln_pdf3[1:2], collapse = "")
+Lincoln_pdf42 <- paste(Lincoln_pdf3[3:4], collapse = " ")
+Lincoln_pdf422 <- paste(Lincoln_pdf3[5:7], collapse = "")
+Lincoln_pdf4[2] <- paste(Lincoln_pdf42, Lincoln_pdf422, collapse = " ")
+Lincoln_pdf43 <- paste(Lincoln_pdf3[8:9], collapse = "")
+Lincoln_pdf433 <- paste(Lincoln_pdf3[10:11], collapse = " ")
+Lincoln_pdf433 <- paste(Lincoln_pdf433, Lincoln_pdf3[12], collapse = "")
+Lincoln_pdf4[3] <- paste(Lincoln_pdf43, Lincoln_pdf433, collapse = " ")
+Lincoln_pdf44 <- paste(Lincoln_pdf3[13:14], collapse = " ")
+Lincoln_pdf44 <- paste(Lincoln_pdf44, Lincoln_pdf3[15], collapse = "")
+Lincoln_pdf44 <- paste(Lincoln_pdf44, Lincoln_pdf3[16], collapse = "")
+Lincoln_pdf444 <- paste(Lincoln_pdf3[17:19], collapse = "")
+Lincoln_pdf4[4] <- paste(Lincoln_pdf44, Lincoln_pdf444, collapse = " ")
+Lincoln_pdf <- paste(Lincoln_pdf4, collapse = " ")
+Lincoln_pdf_sp <- strsplit(Lincoln_pdf, "니다.")
+Lincoln_pdf_sp <- Lincoln_pdf_sp[[1]]
+Lincoln_pdf
+Lincoln_pdf_sp
+str(Lincoln_pdf)
+
 
 ## 공통수행사항 ###############################################################
 
@@ -113,6 +142,57 @@ wordcloud2(word.df)
 ## 2번문제 ####################################################################
 # 제공된 데이터를 이용하여 연관어 분석을 실시하여 연관어를 시각화하고
 # 시각화 결과에 대해 설명하시오
+
+#2-1. 연관어 분석을 위한 전처리하기
+#1단계 줄 단위 단어 추출
+lword <- Map(extractNoun, Lincoln_pdf_sp)
+length(lword)
+#2단계 중복단어 제거와 추출단어 확인
+lword <- sapply(lword, unique)
+length(lword)
+lword
+#3단계 단어 필터링 함수 정의
+filter1 <- function(x){
+  nchar(x) <= 5 && nchar(x) >= 2 && is.hangul(x)
+}
+filter2 <- function(x){ Filter(filter1, x) }
+#4단계 줄 단위로 추출된 단어 전처리
+lword <- sapply(lword, filter2)
+lword
+#2-2. 단어간 연관규칙 발견하기
+#1단계 연관분석을 위한 패키지 설치와 로딩
+#install.packages('arules')
+library(arules)
+#install.packages('backports')
+library(backports)
+#2단계 트랜잭션 생성
+wordtran <- as(lword, "transactions")
+wordtran
+#3단계 연관규칙 발견
+tranrules <- apriori(wordtran, parameter = list(supp = 0.15, conf = 0.05))
+tranrules
+#4단계 연관규칙 생성 결과보기
+detach(package:tm, unload = TRUE)
+inspect(tranrules[17:66])
+#2-3. 연관어 시각화 하기
+#1단계 연관단어 시각화를 위해 자료구조 변경
+rules <- labels(tranrules, ruleSep = " ")
+rules
+#2단계 문자열로 묶인 연관단어를 행령구조로 변경
+rules <- sapply(rules, strsplit, " ", USE.NAMES = F)
+rules
+#3단계 행 단위로 묶어서 matrix로 변환
+rulemat <- do.call("rbind", rules)
+class(rulemat)
+#4단계 연관어 시각화를 위한 igraph 패키지 설치와 로딩
+#install.packages("igraph")
+library(igraph)
+#5단계 edgelist 보기
+ruleg <- graph.edgelist(rulemat[c(17:66),], directed = F)
+ruleg
+#6단계 edgelist 시각화
+plot.igraph(ruleg, vertex.label = V(ruleg)$name, vertex.label.cex = 1.2, vertex.label.color = 'black',
+            vertex.size = 20, vertex.color = 'pink', vertex.frame.color = 'red')
 
 
 
