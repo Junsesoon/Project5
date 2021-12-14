@@ -202,5 +202,67 @@ plot.igraph(ruleg, vertex.label = V(ruleg)$name, vertex.label.cex = 1.2, vertex.
 # 토픽분석을 실행하여 단어구름으로 시각화하고 분석 시점에서 주요 이슈가 무엇인지 
 # 설명하시오.
 
+#3-2. 웹문서 요청
+url <- "http://news.daum.net"
+web <- GET(url)
+web
+#3-3. HTML 파싱하기
+html <- htmlTreeParse(web, useInternalNodes = T, trim = T, encoding = 'UTF-8')
+rootNode <- xmlRoot(html)
+#3-4. 태그 자료 수집하기
+news <- xpathSApply(rootNode, "//a[@class = 'link_txt']", xmlValue)
+#3-5. 수집한 자료 전처리
+#1단계 자료 전처리 - 불용어 제거
+news_pre <- gsub("[\r\n\t]", '', news)
+news_pre <- gsub('[[:punct:]]', '', news_pre)
+news_pre <- gsub('[[:cntrl:]]', '', news_pre)
+news_pre <- gsub('\\d+', '', news_pre)
+news_pre <- gsub('[a-z]+', '', news_pre)
+news_pre <- gsub('[A-Z]+', '', news_pre)
+news_pre <- gsub('\\s+', ' ', news_pre)
+news_pre <- gsub('^ ', '', news_pre)
+news_pre <- gsub('^위', '', news_pre)
+news_pre <- gsub('^ ', '', news_pre)
+#2단계 기사와 관련없는 내용은 제거
+news_data <- news_pre[1:46]
+news_data
+#3-6. 세종 사전에 단어 추가
+user_dic <- data.frame(term = c("코로나19"), tag = 'ncn')
+buildDictionary(ext_dic = 'sejong', user_dic = user_dic)
+#3-7. 단어 추출 사용자 함수 정의하기
+#1단계 사용자 함수 정의
+exNouns <- function(x){ paste(extractNoun(x), collapse = " ") }
+#2단계 exNouns() 함수를 이용하여 단어 추출
+news_nouns <- sapply(news_data, exNouns)
+news_nouns
+#3단계 추출결과 확인
+str(news_nouns)
+#3-8. 말뭉치 생성과 집계 행렬 만들기
+library(tm)
+#1단계 추출된 단어를 이용한 말뭉치(corpus) 생성
+newsCorpus <- Corpus(VectorSource(news_nouns))
+newsCorpus
+inspect(newsCorpus[1:5])
+#2단계 단어vs문서 집계 행렬 만들기
+TMD <- TermDocumentMatrix(newsCorpus, control = list(wordLengths = c(4,16)))
+TMD
+#3단계 matrix자료구조를 data.frame 자료구조로 변경
+tmd.df <- as.data.frame(as.matrix(TMD))
+#3-9. 단어 출현 빈도수 구하기
+wordResult <- sort(rowSums(tmd.df), decreasing = TRUE)
+wordResult[1:10]
+#3-10. 단어 구름 생성
+#1단계 패키지 로딩과 단어 이름 추출
+myNames <- names(wordResult)
+myNames
+#2단계 단어와 단어 빈도수 구하기
+df <- data.frame(word = myNames, freq = wordResult)
+head(df)
+#3단계 단어구름 생성
+pal <- brewer.pal(12, "Paired")
+wordcloud(df$word, df$freq, min.freq = 2, random.order = F, scale = c(4, 0.7),
+          rot.per = .1, colors = pal)
+wordcloud2(df)
+
 
 
