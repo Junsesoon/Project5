@@ -185,6 +185,68 @@ plot.igraph(ruleg, vertex.label = V(ruleg)$name,
 # 다음 포털사이트의 실시간 뉴스(https://news.daum.net/)를 수집하고 실시간 
 # 토픽분석을 실행하여 단어구름으로 시각화하고 분석 시점에서 주요 이슈가 무엇인지 
 # 설명하시오.
+library(tm)
+user_dic <- data.frame(term = c("펜데믹","코로나19","타다","코로나",
+                                "이재명","윤창호법","한국은행"), tag = 'ncn')
+buildDictionary(ext_dic = 'NIADic', user_dic =user_dic)
+
+# 1) 웹 문서 요청
+url <- "http://news.daum.net/"
+web <-GET(url)
+web
+
+# 2) 파싱
+html <- htmlTreeParse(web, useInternalNodes = T, trim = T, encoding = "UTF-8")
+rootNode <- xmlRoot(html)
+
+# 3) 태그 자료 수집
+news <- xpathSApply(rootNode , "//a[@class = 'link_txt']",xmlValue)
+news
+
+# 4) 수집 자료 전처리
+news_pre <- gsub("[\r\n\t]", ' ', news)
+news_pre <- gsub('[[:punct:]]', ' ', news_pre)
+news_pre <- gsub('[[:cntrl:]]', ' ', news_pre)
+news_pre <- gsub('[a-z]+', ' ', news_pre)
+news_pre <- gsub('[A-Z]+', ' ', news_pre)
+news_pre <- gsub('\\s+', ' ', news_pre)
+news_pre
+news_data <- news_pre[1:58]
+news_data
+
+# 5) 단어 추출 함수
+exNouns <- function(x){paste(extractNoun(x), collapse = " ")}
+news_nouns <- sapply(news_data, exNouns)
+news_nouns
+str(news_nouns)
+
+# 6) 말뭉치 생성
+newsCorpus <- Corpus(VectorSource(news_nouns))
+newsCorpus
+
+# 집계 행렬 만들기
+newsTDM <- TermDocumentMatrix(newsCorpus,control=list(wordLengths =c(4,16)))
+newsTDM
+
+tdm.df <- as.data.frame(as.matrix(newsTDM))
+dim(tdm.df)
+
+#7) 단어 출현 빈도수
+wordResult <- sort(rowSums(tdm.df), decreasing = TRUE)
+wordResult[1:70]
+
+# 8) 단어와 단어 빈도수 구하기
+myNames <- names(wordResult)
+df <- data.frame(word = myNames, freq = wordResult)
+data2 <- data.frame(df$word,df$freq)
+
+
+# 9) 단어 구름 생성
+pal <- brewer.pal(9, "BuGn")
+wordcloud(df$word, df$freq, min.freq=2,
+          random.order = F, scale = c(4, 0.7),
+          rot.per = .1,color = pal,family = "malgun")
+wordcloud2(data=data2,size=1.6, color='random-light',backgroundColor = "black")
 
 
 
